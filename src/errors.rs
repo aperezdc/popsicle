@@ -11,9 +11,9 @@ error_chain!{
             display("cannot obtain compiler information: {}", t)
         }
 
-        ExternalExeError(name: String) {
+        ExternalExeError(name: ::std::path::PathBuf) {
             description("external program error")
-            display("cannot find external program: {}", name)
+            display("cannot find external program: {:?}", name)
         }
     }
 

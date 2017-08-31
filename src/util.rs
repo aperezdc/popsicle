@@ -4,9 +4,10 @@
 // Distributed under terms of the MIT license.
 //
 
+use std::convert::AsRef;
 use std::fmt::{ self, Write };
 use std::os::unix::prelude::MetadataExt;
-use std::path::PathBuf;
+use std::path::{ Path, PathBuf };
 use std::process::Command;
 use regex::Regex;
 
@@ -48,10 +49,10 @@ pub fn compiler_info(path: &::std::ffi::OsStr) -> Result<(CompilerKind, String, 
 }
 
 
-pub fn find_program(name: &str, symlink_target: Option<&PathBuf>) -> Result<PathBuf> {
-    let name_path = PathBuf::from(name);
+pub fn find_program<P: AsRef<Path>>(name: P, symlink_target: Option<&PathBuf>) -> Result<PathBuf> {
+    let name_path = name.as_ref();
     if name_path.is_absolute() {
-        return Ok(name_path);
+        return Ok(name_path.to_path_buf());
     }
 
     // Resolve device+inode of the file pointed to by the symlink.
@@ -64,7 +65,7 @@ pub fn find_program(name: &str, symlink_target: Option<&PathBuf>) -> Result<Path
 
     for path in ::std::env::split_paths(search_paths.as_str()) {
         if path.is_absolute() {
-            let full_path: PathBuf = [&path, &name_path].into_iter().collect();
+            let full_path: PathBuf = [&path, name_path].into_iter().collect();
             // TODO: Also check that the file is executable (st_mode?)
             if let Some(target_dev_ino) = target_dev_ino {
                 let is_symlink = full_path.symlink_metadata().ok()
@@ -84,7 +85,7 @@ pub fn find_program(name: &str, symlink_target: Option<&PathBuf>) -> Result<Path
             warn!("path '{:?}' (from $PATH) is not absolute, skipping", path);
         }
     }
-    bail!(ErrorKind::ExternalExeError(name.to_string()))
+    bail!(ErrorKind::ExternalExeError(name_path.to_path_buf()))
 }
 
 
