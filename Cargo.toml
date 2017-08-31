@@ -28,6 +28,8 @@ features = ["std", "endian_fd"]
 
 [profile.release]
 lto = true
+opt-level = "s"
+panic = "abort"
 
 [features]
 default = ["elf"]

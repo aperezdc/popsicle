@@ -7,6 +7,9 @@
 // error_chain! can recurse deeply
 #![recursion_limit = "1024"]
 
+// Use the system allocator instead of jemalloc
+#![feature(alloc_system)]
+
 #[cfg(test)]
 #[macro_use] extern crate pretty_assertions;
 
