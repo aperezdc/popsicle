@@ -19,7 +19,6 @@ extern crate libflate;
 extern crate memmap;
 extern crate regex;
 extern crate tar;
-extern crate tempdir;
 extern crate xdg;
 
 mod bindep;

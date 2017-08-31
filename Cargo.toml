@@ -15,7 +15,6 @@ log = "^0.3"
 memmap = "^0.5"
 regex = "^0.2"
 tar = "^0.4"
-tempdir = "^0.3"
 xdg = "^2.0"
 
 [profile.release]
