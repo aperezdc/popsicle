@@ -127,6 +127,9 @@ fn compiler_fixup_tar_clang<W: Write>(tar: &mut tar::Builder<W>) -> Result<()> {
 #[derive(StructOpt)]
 #[structopt(name="popsicle", about="Creates toolchain tarballs for Icecream")]
 struct CliOptions {
+    #[structopt(short="f", long="force", help="Always rebuild the toolchain tarball")]
+    force_rebuild: bool,
+
     #[structopt(help="Specify the name of the compiler to package")]
     compiler: String,
 }
@@ -213,7 +216,7 @@ fn run() -> Result<()> {
     debug!("cache valid={}", cache.is_valid());
 
     let targz_path = cache.path_for(&format!("{}-{}.tar.gz", name, version))?;
-    if !(targz_path.is_file() && cache.is_valid()) {
+    if options.force_rebuild || !(targz_path.is_file() && cache.is_valid()) {
         if let Some(old_version) = old_version {
             if old_version == version {
                 cache.del(&format!("{}-{}.tar.gz", name, old_version))?;
