@@ -7,10 +7,10 @@
 // error_chain! can recurse deeply
 #![recursion_limit = "1024"]
 
-#[macro_use] extern crate clap;
 #[macro_use] extern crate error_chain;
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate log;
+#[macro_use] extern crate structopt_derive;
 
 extern crate blake2_rfc;
 extern crate env_logger;
@@ -18,6 +18,7 @@ extern crate goblin;
 extern crate libflate;
 extern crate memmap;
 extern crate regex;
+extern crate structopt;
 extern crate tar;
 extern crate xdg;
 
@@ -30,6 +31,7 @@ use libflate::gzip;
 use std::convert::AsRef;
 use std::io::{ Seek, Write };
 use std::path::{ Path, PathBuf };
+use structopt::StructOpt;
 
 use bindep::TarBuilderExt;
 use errors::*;
@@ -122,15 +124,18 @@ fn compiler_fixup_tar_clang<W: Write>(tar: &mut tar::Builder<W>) -> Result<()> {
 }
 
 
+#[derive(StructOpt)]
+#[structopt(name="popsicle", about="Creates toolchain tarballs for Icecream")]
+struct CliOptions {
+    #[structopt(help="Specify the name of the compiler to package")]
+    compiler: String,
+}
+
+
 fn run() -> Result<()> {
     env_logger::init().chain_err(|| "Cannot initialize logging")?;
 
-    let matches = clap_app!(popsicle =>
-        (version: "0.1")
-        (author: "Adrián Pérez de Castro")
-        (about: "Creates compiler environments for Icecream")
-        (@arg compiler: +required "Specify the compiler to package")
-    ).get_matches();
+    let options = CliOptions::from_args();
 
     let ccache_path = match util::find_program("ccache", None) {
         Ok(path) => {
@@ -143,8 +148,7 @@ fn run() -> Result<()> {
         }
     };
 
-    let compiler_path = util::find_program(matches.value_of("compiler").unwrap(),
-                                           ccache_path.as_ref())?;
+    let compiler_path = util::find_program(options.compiler, ccache_path.as_ref())?;
     info!("Compiler executable: {:?}", compiler_path);
 
     let (kind, name, version) = util::compiler_info(compiler_path.as_os_str())?;
