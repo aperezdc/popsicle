@@ -11,7 +11,6 @@ use std::ops::Deref;
 use std::path::{ Path, PathBuf };
 use super::goblin::{ Object };
 use super::memmap::{ Mmap, Protection };
-use super::util;
 use super::tar;
 
 use errors::*;
@@ -176,7 +175,6 @@ impl<W: Write> TarBuilderExt for tar::Builder<W> {
 
 pub struct Solver<W: Write> {
     files: HashSet<PathBuf>,
-    cksum: util::Checksummer,
     tar: tar::Builder<W>,
 }
 
@@ -187,13 +185,12 @@ impl<W: Write> Solver<W> {
         tar.symlink(".", "usr")?;
         Ok(Solver {
             files: HashSet::new(),
-            cksum: util::Checksummer::new(),
             tar: tar,
         })
     }
 
-    pub fn finalize(self) -> (util::Checksum, tar::Builder<W>) {
-        (self.cksum.finalize(), self.tar)
+    pub fn into_inner(self) -> tar::Builder<W> {
+        self.tar
     }
 
     pub fn scan_file(&mut self, path: &Path) -> Result<()> {
@@ -210,7 +207,6 @@ impl<W: Write> Solver<W> {
                 debug!("memmap has {} bytes", file_map.len());
                 let file_data = unsafe { file_map.as_slice() };
 
-                self.cksum.update(file_data);
                 self.tar.add(path, path.strip_prefix("/").unwrap(), file_data)
                     .chain_err(|| format!("cannot add {:?} to tar file", path))?;
 
