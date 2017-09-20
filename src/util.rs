@@ -5,14 +5,10 @@
 //
 
 use std::convert::AsRef;
-use std::fmt::{ self, Write };
 use std::os::unix::prelude::MetadataExt;
 use std::path::{ Path, PathBuf };
 use std::process::Command;
 use regex::Regex;
-
-use super::blake2_rfc::blake2s;
-
 use errors::*;
 
 
@@ -86,55 +82,4 @@ pub fn find_program<P: AsRef<Path>>(name: P, symlink_target: Option<&PathBuf>) -
         }
     }
     bail!(ErrorKind::ExternalExeError(name_path.to_path_buf()))
-}
-
-
-#[derive(Eq, PartialEq)]
-pub struct Checksum {
-    result: blake2s::Blake2sResult,
-    hexstr: String,
-}
-
-pub struct Checksummer(blake2s::Blake2s);
-
-impl Checksummer {
-    #[inline]
-    pub fn new() -> Self {
-        Checksummer(blake2s::Blake2s::new(32))
-    }
-
-    #[inline]
-    pub fn update(&mut self, data: &[u8]) {
-        self.0.update(data)
-    }
-
-    #[inline]
-    pub fn finalize(self) -> Checksum {
-        Checksum::from_result(self.0.finalize())
-    }
-}
-
-impl Checksum {
-    #[inline]
-    fn from_result(result: blake2s::Blake2sResult) -> Self {
-        let mut hexstr = String::new();
-        for byte in result.as_bytes() {
-            write!(hexstr, "{:02x}", byte).unwrap();
-        }
-        Checksum {
-            result: result,
-            hexstr: hexstr,
-        }
-    }
-
-    #[inline]
-    pub fn as_string(&self) -> &String {
-        &self.hexstr
-    }
-}
-
-impl fmt::LowerHex for Checksum {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.hexstr)
-    }
 }

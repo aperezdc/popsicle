@@ -22,6 +22,7 @@ extern crate structopt;
 extern crate tar;
 extern crate xdg;
 
+mod csum;
 mod bindep;
 mod cache;
 mod errors;
@@ -186,7 +187,8 @@ fn run() -> Result<()> {
         .chain_err(|| format!("cannot open {:?} in reading and writing", tar_path))?;
     std::fs::remove_file(&tar_path)?;
 
-    let mut solver = bindep::Solver::new(std::io::BufWriter::new(tar_file))
+    let writer = csum::CSumWriter::new(std::io::BufWriter::new(tar_file));
+    let mut solver = bindep::Solver::new(writer)
          .chain_err(|| format!("cannot create write buffer for {:?}", tar_path))?;
 
     for binary in [&compiler_path, &assembler_path, &true_path].iter() {
@@ -198,16 +200,16 @@ fn run() -> Result<()> {
         }
     }
 
-    let (checksum, mut tar) = solver.finalize();
+    let mut tar = solver.into_inner();
     compiler_fixup_tar(kind, &mut tar)?;
 
-    let mut tar_file = match tar.into_inner()?.into_inner() {
-        Err(e) => bail!("cannot write tar file: {}", e),
-        Ok(file) => file,
+    let (mut tar_file, checksum) = {
+        let (writer, checksum) = tar.into_inner()?.into_inner();
+        (writer.into_inner().unwrap(), checksum)
     };
     assert_eq!(0, tar_file.seek(std::io::SeekFrom::Start(0))?);
 
-    cache.add("checksum", checksum.as_string().as_bytes())?;
+    cache.add("checksum", checksum)?;
     debug!("cache valid={}", cache.is_valid());
 
     let targz_path = cache.path_for(&format!("{}-{}.tar.gz", name, version))?;
