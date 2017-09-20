@@ -1,5 +1,7 @@
 # Popsicle 🍧
 
+[![Build Status](https://travis-ci.org/aperezdc/popsicle.svg?branch=master)](https://travis-ci.org/aperezdc/popsicle)
+
 Popsicle creates toolchain tarballs for
 [Icecream](https://github.com/icecc/icecream) (also known as IceCC).
 
