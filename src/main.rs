@@ -214,10 +214,8 @@ fn run() -> Result<()> {
 
     let targz_path = cache.path_for(&format!("{}-{}.tar.gz", name, version))?;
     if options.force_rebuild || !(targz_path.is_file() && cache.is_valid()) {
-        if let Some(old_version) = old_version {
-            if old_version == version {
-                cache.del(&format!("{}-{}.tar.gz", name, old_version))?;
-            }
+        if let Some(version) = old_version {
+            cache.del(format!("{}-{}.tar.gz", name, version))?;
         }
         let mut encoder = gzip::Encoder::new(std::io::BufWriter::new(std::fs::File::create(&targz_path)?))?;
         info!("compressing tarball...");
