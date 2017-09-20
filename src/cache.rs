@@ -4,6 +4,7 @@
 // Distributed under terms of the MIT license.
 //
 
+use std::convert::AsRef;
 use std::fmt;
 use std::fs::File;
 use std::io::{ BufReader, BufWriter };
@@ -15,76 +16,33 @@ use super::xdg;
 use errors::*;
 
 
-pub trait Cache: ::std::fmt::Debug {
-    fn is_valid(&self) -> bool;
-    fn get(&self, key: &str) -> Result<Option<String>>;
-    fn add(&mut self, key: &str, data: &[u8]) -> Result<()>;
-    fn del(&mut self, key: &str) -> Result<()>;
-    fn path_for(&mut self, key: &str) -> Result<PathBuf>;
-
-    fn has(&self, key: &str) -> bool {
-        match self.get(key) {
-            Ok(Some(_)) => true,
-            _ => false
-        }
-    }
-}
-
-
-pub struct DummyCache { }
-
-impl DummyCache {
-    pub fn new() -> Self {
-        DummyCache {}
-    }
-}
-
-impl Cache for DummyCache {
-    fn is_valid(&self) -> bool { false }
-    fn get(&self, _key: &str) -> Result<Option<String>> { Ok(None) }
-    fn add(&mut self, _key: &str, _data: &[u8]) -> Result<()> { Ok(()) }
-    fn del(&mut self, _key: &str,) -> Result<()> { Ok(()) }
-
-    fn path_for(&mut self, _key: &str) -> Result<PathBuf> {
-        unimplemented!()
-    }
-}
-
-impl fmt::Debug for DummyCache {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "None/Dummy")
-    }
-}
-
-
-pub struct XdgCache {
+pub struct Cache {
     xdg: xdg::BaseDirectories,
     valid: bool,
 }
 
-impl XdgCache {
-    pub fn new(profile: &str) -> Result<Self> {
+impl Cache {
+    pub fn new<S: AsRef<str>>(profile: S) -> Result<Self> {
         Ok(Self{
-            xdg: xdg::BaseDirectories::with_profile("popsicle", profile)?,
+            xdg: xdg::BaseDirectories::with_profile("popsicle", profile.as_ref())?,
             valid: true,
         })
     }
-}
 
-impl Cache for XdgCache {
-    fn is_valid(&self) -> bool {
+    pub fn is_valid(&self) -> bool {
         self.valid
     }
 
-    fn has(&self, key: &str) -> bool {
-        match self.xdg.find_cache_file(key) {
+    #[cfg(test)]
+    pub fn has<S: AsRef<str>>(&self, key: S) -> bool {
+        match self.xdg.find_cache_file(key.as_ref()) {
             Some(_) => true,
             None => false,
         }
     }
 
-    fn get(&self, key: &str) -> Result<Option<String>> {
-        match self.xdg.find_cache_file(key) {
+    pub fn get<S: AsRef<str>>(&self, key: S) -> Result<Option<String>> {
+        match self.xdg.find_cache_file(key.as_ref()) {
             Some(ref path) => {
                 let mut bytes = String::new();
                 BufReader::new(File::open(path)?).read_to_string(&mut bytes)?;
@@ -94,12 +52,12 @@ impl Cache for XdgCache {
         }
     }
 
-    fn add(&mut self, key: &str, data: &[u8]) -> Result<()> {
-        let path = self.xdg.place_cache_file(key)?;
+    pub fn add<S: AsRef<str>, D: AsRef<[u8]>>(&mut self, key: S, data: D) -> Result<()> {
+        let path = self.xdg.place_cache_file(key.as_ref())?;
 
         let must_write_contents = !path.is_file() || {
             let mut file_bytes = BufReader::new(File::open(&path)?).bytes();
-            let mut data_bytes = data.iter();
+            let mut data_bytes = data.as_ref().iter();
             loop {
                 match (file_bytes.next(), data_bytes.next()) {
                     (Some(Ok(a)), Some(b)) if a == *b => continue,
@@ -112,34 +70,36 @@ impl Cache for XdgCache {
 
         if must_write_contents {
             self.valid = false;
-            BufWriter::new(File::create(path)?).write_all(data)?;
+            BufWriter::new(File::create(path)?).write_all(data.as_ref())?;
         }
         Ok(())
     }
 
-    fn del(&mut self, key: &str) -> Result<()> {
-        match self.xdg.find_cache_file(key) {
+    pub fn del<S: AsRef<str>>(&mut self, key: S) -> Result<()> {
+        match self.xdg.find_cache_file(key.as_ref()) {
             Some(ref path) if path.is_file() => Ok(::std::fs::remove_file(path)?),
             _ => Ok(())
         }
     }
 
-    fn path_for(&mut self, key: &str) -> Result<PathBuf> {
-        Ok(self.xdg.place_cache_file(key)?)
+    pub fn path_for<S: AsRef<str>>(&mut self, key: S) -> Result<PathBuf> {
+        Ok(self.xdg.place_cache_file(key.as_ref())?)
     }
 }
 
-impl fmt::Debug for XdgCache {
+impl fmt::Debug for Cache {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "XDG({:?}, valid={})", self.xdg.get_cache_home(), self.valid)
+        write!(f, "Cache({:?}, valid={})", self.xdg.get_cache_home(), self.valid)
     }
 }
 
 
 #[cfg(test)]
 mod tests {
+    extern crate tempdir;
+
     use super::*;
-    use ::tempdir::TempDir;
+    use self::tempdir::TempDir;
 
     fn make_tempdir() -> TempDir {
         let tmpdir = TempDir::new("popsicle-test").unwrap();
@@ -150,14 +110,14 @@ mod tests {
     #[test]
     fn has_non_existing() {
         let _tmpdir = make_tempdir();
-        let cache = XdgCache::new("test").unwrap();
+        let cache = Cache::new("test").unwrap();
         assert!(!cache.has("non-existing"));
     }
 
     #[test]
     fn has_existing() {
         let _tmpdir = make_tempdir();
-        let mut cache = XdgCache::new("test").unwrap();
+        let mut cache = Cache::new("test").unwrap();
         cache.add("existing", "this key exists".as_bytes()).unwrap();
         assert!(cache.has("existing"));
     }
@@ -165,14 +125,14 @@ mod tests {
     #[test]
     fn get_non_existing() {
         let _tmpdir = make_tempdir();
-        let cache = XdgCache::new("test").unwrap();
+        let cache = Cache::new("test").unwrap();
         assert_eq!(None, cache.get("non-existing").unwrap());
     }
 
     #[test]
     fn get_existing() {
         let _tmpdir = make_tempdir();
-        let mut cache = XdgCache::new("test").unwrap();
+        let mut cache = Cache::new("test").unwrap();
         cache.add("existing", "this key exists".as_bytes()).unwrap();
         assert_eq!("this key exists", cache.get("existing").unwrap().unwrap());
     }
@@ -180,8 +140,8 @@ mod tests {
     #[test]
     fn profiles_dont_clash() {
         let _tmpdir = make_tempdir();
-        let mut cache1 = XdgCache::new("test1").unwrap();
-        let mut cache2 = XdgCache::new("test2").unwrap();
+        let mut cache1 = Cache::new("test1").unwrap();
+        let mut cache2 = Cache::new("test2").unwrap();
         cache1.add("key", "key in cache 1".as_bytes()).unwrap();
         assert!(cache1.has("key"));
         assert!(!cache2.has("key"));

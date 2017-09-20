@@ -168,13 +168,8 @@ fn run() -> Result<()> {
     let true_path = util::find_program("true", None)
         .chain_err(|| "cannot find \"true\" executable")?;
 
-    let mut cache: Box<cache::Cache> = match cache::XdgCache::new(name.as_str()) {
-        Ok(cache) => Box::new(cache),
-        Err(err) => {
-            warn!("Cannot use XDG cache: {}", err);
-            Box::new(cache::DummyCache::new())
-        }
-    };
+    let mut cache = cache::Cache::new(name.as_str())
+        .chain_err(|| "Could not open cache")?;
     info!("cache: {:?}", cache);
 
     let old_version = cache.get("compiler-version")?;
