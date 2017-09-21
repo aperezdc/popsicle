@@ -7,6 +7,9 @@
 // error_chain! can recurse deeply
 #![recursion_limit = "1024"]
 
+#[cfg(test)]
+#[macro_use] extern crate pretty_assertions;
+
 #[macro_use] extern crate error_chain;
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate log;
