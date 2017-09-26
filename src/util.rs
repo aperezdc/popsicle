@@ -8,7 +8,7 @@ use std::convert::AsRef;
 use std::os::unix::prelude::MetadataExt;
 use std::path::{ Path, PathBuf };
 use std::process::Command;
-use regex::Regex;
+use regex::bytes::Regex;
 use errors::*;
 
 
@@ -18,6 +18,8 @@ pub enum CompilerKind {
     Clang,
 }
 
+const NL: u8 = 0x0A;
+
 
 pub fn compiler_info(path: &::std::ffi::OsStr) -> Result<(CompilerKind, String, String)> {
     lazy_static! {
@@ -25,19 +27,19 @@ pub fn compiler_info(path: &::std::ffi::OsStr) -> Result<(CompilerKind, String, 
     }
 
     let output = Command::new(path).arg("-v").output()?;
-    let out = ::std::str::from_utf8(output.stdout.as_slice())?;
-    let err = ::std::str::from_utf8(output.stderr.as_slice())?;
+    let out = output.stdout.as_slice();
+    let err = output.stderr.as_slice();
 
-    for line in out.lines().chain(err.lines()) {
+    for line in out.split(|&c| c == NL).chain(err.split(|&c| c == NL)) {
         if let Some(cap) = RE.captures(line) {
-            let name = cap.get(1).unwrap().as_str().to_lowercase();
-            let version = cap.get(2).unwrap().as_str();
-            let kind = match name.as_str() {
+            let name = ::std::str::from_utf8(&cap[1]).unwrap();
+            let version = ::std::str::from_utf8(&cap[2]).unwrap();
+            let kind = match name {
                 "gcc" => CompilerKind::Gcc,
                 "clang" => CompilerKind::Clang,
                 _ => unreachable!()
             };
-            return Ok((kind, name, version.to_string()));
+            return Ok((kind, name.to_string(), version.to_string()));
         }
     }
 
