@@ -11,7 +11,6 @@ pretty_assertions = "*"
 blake2-rfc = "^0.2"
 env_logger = "^0.4"
 error-chain = "^0.11"
-goblin = "^0.0"
 lazy_static = "^0.2"
 libflate = "^0.1"
 log = "^0.3"
@@ -22,5 +21,14 @@ structopt-derive = "^0.1"
 tar = "^0.4"
 xdg = "^2.0"
 
+[dependencies.goblin]
+version = "^0.0"
+default-features = false
+features = ["std", "endian_fd"]
+
 [profile.release]
 lto = true
+
+[features]
+default = ["elf"]
+elf = ["goblin/elf32", "goblin/elf64"]

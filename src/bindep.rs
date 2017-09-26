@@ -9,17 +9,18 @@ use std::collections::HashSet;
 use std::io::{ Write, Result as IoResult };
 use std::ops::Deref;
 use std::path::{ Path, PathBuf };
-use super::goblin::{ Object };
 use super::memmap::{ Mmap, Protection };
 use super::tar;
 
 use errors::*;
 
 
+#[cfg(feature="elf")]
 mod elf {
     use super::*;
-    use ::goblin::elf::{ dyn, Elf };
     use ::regex::{ Captures, Regex };
+    use ::goblin::elf::{ dyn, Elf };
+    use ::goblin::error::{ Result as GobResult };
 
     lazy_static! {
         static ref RE: Regex = Regex::new(r"(?:\$\{(ORIGIN|LIB|PLATFORM)\}|\$(ORIGIN|LIB|PLATFORM))").unwrap();
@@ -128,8 +129,8 @@ mod elf {
         }
     }
 
-    pub fn libraries(path: &Path, elf: &Elf) -> Vec<PathBuf> {
-        Libraries::new(path, elf).map(|p| p.to_path_buf()).collect()
+    pub fn libraries(path: &Path, data: &[u8]) -> GobResult<Vec<PathBuf>> {
+        Ok(Libraries::new(path, &Elf::parse(data)?).map(|p| p.to_path_buf()).collect())
     }
 }
 
@@ -209,14 +210,8 @@ impl<W: Write> Solver<W> {
 
                 self.tar.add(path, path.strip_prefix("/").unwrap(), file_data)
                     .chain_err(|| format!("cannot add {:?} to tar file", path))?;
-
-                match Object::parse(file_data).chain_err(|| format!("cannot parse executable {:?}", path))? {
-                    Object::Elf(ref obj) => elf::libraries(path, obj),
-                    Object::PE(_)        => bail!("unsupported PE binary: {:?}", path),
-                    Object::Mach(_)      => bail!("unsupported Mach-O binary: {:?}", path),
-                    Object::Archive(_)   => bail!("unsupported file (archive): {:?}", path),
-                    Object::Unknown(m)   => bail!("unsupported file (magic {:#x}): {:?}", m, path),
-                }
+                elf::libraries(path, file_data)
+                    .chain_err(|| format!("cannot parse ELF binary: {:?}", path))?
             },
         };
         for library in needed_libraries {
