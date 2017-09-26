@@ -23,7 +23,7 @@ Both GCC and Clang are supported.
 ## Building
 
 You will need a stable version of the [Rust](https://www.rust-lang.org/)
-compiler and tools, including the `cargo`:
+compiler and tools, including Cargo:
 
 ```sh
 git clone https://github.com/aperezdc/popsicle && cd $_
