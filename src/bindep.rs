@@ -6,10 +6,11 @@
 
 use std::convert::AsRef;
 use std::collections::HashSet;
+use std::fs::File;
 use std::io::{ Write, Result as IoResult };
 use std::ops::Deref;
 use std::path::{ Path, PathBuf };
-use super::memmap::{ Mmap, Protection };
+use super::memmap::Mmap;
 use super::tar;
 
 use errors::*;
@@ -203,14 +204,18 @@ impl<W: Write> Solver<W> {
             None => {
                 info!("scanning {:?}", path);
                 // TODO: Improve error reporting.
-                let file_map = Mmap::open_path(path, Protection::Read)
-                    .chain_err(|| format!("cannot create memmap for {:?}", path))?;
+                let file_map = {
+                    let file = File::open(&path)
+                        .chain_err(|| format!("cannot open file {:?}", path))?;
+                    unsafe {
+                        Mmap::map(&file)
+                            .chain_err(|| format!("cannot create memmap for {:?}", path))?
+                    }
+                };
                 debug!("memmap has {} bytes", file_map.len());
-                let file_data = unsafe { file_map.as_slice() };
-
-                self.tar.add(path, path.strip_prefix("/").unwrap(), file_data)
+                self.tar.add(path, path.strip_prefix("/").unwrap(), &file_map)
                     .chain_err(|| format!("cannot add {:?} to tar file", path))?;
-                elf::libraries(path, file_data)
+                elf::libraries(path, &file_map)
                     .chain_err(|| format!("cannot parse ELF binary: {:?}", path))?
             },
         };
