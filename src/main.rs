@@ -140,7 +140,7 @@ struct CliOptions {
 
 
 fn run() -> Result<()> {
-    env_logger::init().chain_err(|| "Cannot initialize logging")?;
+    env_logger::init();
 
     let options = CliOptions::from_args();
 
