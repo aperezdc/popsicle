@@ -194,7 +194,7 @@ fn run() -> Result<()> {
     let mut solver = bindep::Solver::new(writer)
          .chain_err(|| format!("cannot create write buffer for {:?}", tar_path))?;
 
-    for binary in [&compiler_path, &assembler_path, &true_path].iter() {
+    for binary in &[&compiler_path, &assembler_path, &true_path] {
         solver.scan_file(binary.as_path())?;
     }
     if let Some(binaries) = compiler_binaries(kind, compiler_path) {

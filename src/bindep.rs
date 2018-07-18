@@ -44,7 +44,7 @@ mod elf {
                             // TODO: Expand $LIB and $PLATFORM.
                             debug!("expanding run path \"{}\"", path);
                             let expanded = RE.replace_all(path, |caps: &Captures| {
-                                match caps.get(1).or(caps.get(2)) {
+                                match caps.get(1).or_else(|| caps.get(2)) {
                                     Some(m) => match m.as_str() {
                                         "ORIGIN" => String::from(base_path_str),
                                         "PLATFORM" => unimplemented!(),
@@ -185,10 +185,7 @@ impl<W: Write> Solver<W> {
         let mut tar = tar::Builder::new(writer);
         tar.symlink("bin", "sbin")?;
         tar.symlink(".", "usr")?;
-        Ok(Solver {
-            files: HashSet::new(),
-            tar: tar,
-        })
+        Ok(Solver { files: HashSet::new(), tar })
     }
 
     pub fn into_inner(self) -> tar::Builder<W> {

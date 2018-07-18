@@ -59,7 +59,7 @@ pub fn find_program<P: AsRef<Path>>(name: P, symlink_target: Option<&PathBuf>) -
     });
 
     let search_paths = ::std::env::var("PATH")
-        .unwrap_or("/bin:/usr/bin:/usr/local/bin".to_string());
+        .unwrap_or_else(|_| "/bin:/usr/bin:/usr/local/bin".to_string());
 
     for path in ::std::env::split_paths(search_paths.as_str()) {
         if path.is_absolute() {

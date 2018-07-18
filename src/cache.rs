@@ -76,10 +76,10 @@ impl Cache {
     }
 
     pub fn del<S: AsRef<str>>(&mut self, key: S) -> Result<()> {
-        match self.xdg.find_cache_file(key.as_ref()) {
-            Some(ref path) if path.is_file() => Ok(::std::fs::remove_file(path)?),
-            _ => Ok(())
+        if let Some(ref path) = self.xdg.find_cache_file(key.as_ref()) {
+            ::std::fs::remove_file(path)?;
         }
+        Ok(())
     }
 
     pub fn path_for<S: AsRef<str>>(&mut self, key: S) -> Result<PathBuf> {

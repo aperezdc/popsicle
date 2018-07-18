@@ -24,10 +24,7 @@ impl From<Blake2bResult> for Checksum
         for byte in result.as_bytes() {
             write!(hexstr, "{:02x}", byte).unwrap();
         }
-        Self {
-            result: result,
-            hexstr: hexstr,
-        }
+        Self { result, hexstr }
     }
 }
 
@@ -57,10 +54,7 @@ pub struct CSumWriter<W: Write> {
 
 impl<W: Write> CSumWriter<W> {
     pub fn new(inner: W) -> Self {
-        Self {
-            inner: inner,
-            csum: Blake2b::new(64),
-        }
+        Self { inner, csum: Blake2b::new(64) }
     }
 
     pub fn into_inner(self) -> (W, Checksum) {
@@ -74,7 +68,7 @@ impl<W: Write> Write for CSumWriter<W> {
     }
 
     fn write(&mut self, data: &[u8]) -> IOResult<usize> {
-        self.csum.write(data)?;
+        self.csum.write_all(data)?;
         self.inner.write(data)
     }
 }
