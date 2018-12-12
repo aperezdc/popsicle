@@ -8,27 +8,12 @@
 #![recursion_limit = "1024"]
 
 #[cfg(test)]
-#[macro_use] extern crate pretty_assertions;
+use pretty_assertions::assert_eq;
 
-#[macro_use] extern crate error_chain;
-#[macro_use] extern crate lazy_static;
-#[macro_use] extern crate log;
-#[macro_use] extern crate structopt_derive;
-
-extern crate blake2_rfc;
-extern crate env_logger;
-extern crate goblin;
-extern crate libflate;
-extern crate memmap;
-extern crate regex;
-extern crate structopt;
-extern crate tar;
-extern crate xdg;
-
-mod csum;
-mod bindep;
-mod cache;
 mod errors;
+mod bindep;
+mod csum;
+mod cache;
 mod util;
 
 use libflate::gzip;
@@ -36,10 +21,11 @@ use std::convert::AsRef;
 use std::io::{ Seek, Write };
 use std::path::{ Path, PathBuf };
 use structopt::StructOpt;
+use log::{ info, warn, debug };
 
-use bindep::TarBuilderExt;
-use errors::*;
-quick_main!(run);
+use crate::bindep::TarBuilderExt;
+use crate::errors::*;
+error_chain::quick_main!(run);
 
 
 fn compiler_binaries<P: AsRef<Path>>(compiler_kind: util::CompilerKind, compiler_path: P) -> Option<Vec<PathBuf>> {

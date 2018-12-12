@@ -4,16 +4,18 @@
 // Distributed under terms of the MIT license.
 //
 
+#[cfg(debug)]
+use pretty_assertions::{ assert, assert_eq };
+
 use std::convert::AsRef;
 use std::fmt;
 use std::fs::File;
 use std::io::{ BufReader, BufWriter };
 use std::io::prelude::*;
 use std::path::PathBuf;
+use xdg;
 
-use super::xdg;
-
-use errors::*;
+use crate::errors::*;
 
 
 pub struct Cache {

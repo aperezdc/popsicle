@@ -8,8 +8,11 @@ use std::convert::AsRef;
 use std::os::unix::prelude::MetadataExt;
 use std::path::{ Path, PathBuf };
 use std::process::Command;
+use lazy_static::lazy_static;
 use regex::bytes::Regex;
-use errors::*;
+use error_chain::bail;
+use log::warn;
+use crate::errors::*;
 
 
 #[derive(Debug, Clone, Copy)]

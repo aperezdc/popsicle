@@ -4,6 +4,8 @@
 // Distributed under terms of the MIT license.
 //
 
+use error_chain::*;
+
 error_chain!{
     errors {
         CompilerInfoError(t: &'static str) {
@@ -11,17 +13,17 @@ error_chain!{
             display("cannot obtain compiler information: {}", t)
         }
 
-        ExternalExeError(name: ::std::path::PathBuf) {
+        ExternalExeError(name: std::path::PathBuf) {
             description("external program error")
             display("cannot find external program: {:?}", name)
         }
     }
 
     foreign_links {
-        Io(::std::io::Error);
-        Re(::regex::Error);
-        Utf8(::std::str::Utf8Error);
-        Xdg(::xdg::BaseDirectoriesError);
+        Io(std::io::Error);
+        Re(regex::Error);
+        Utf8(std::str::Utf8Error);
+        Xdg(xdg::BaseDirectoriesError);
     }
 }
 

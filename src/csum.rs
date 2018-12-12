@@ -7,8 +7,7 @@
 use std::convert::{ AsRef, From };
 use std::fmt::Write as FmtWrite;
 use std::io::{ Result as IOResult, Write };
-
-use super::blake2_rfc::blake2b::{ Blake2b, Blake2bResult };
+use blake2_rfc::blake2b::{ Blake2b, Blake2bResult };
 
 
 #[derive(Eq, PartialEq)]

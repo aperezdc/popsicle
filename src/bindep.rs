@@ -4,24 +4,29 @@
 // Distributed under terms of the MIT license.
 //
 
+#[cfg(debug)]
+use pretty_assertions::assert;
+
+use lazy_static::lazy_static;
+use log::{ info, warn, debug };
 use std::convert::AsRef;
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{ Write, Result as IoResult };
 use std::ops::Deref;
 use std::path::{ Path, PathBuf };
-use super::memmap::Mmap;
-use super::tar;
+use memmap::Mmap;
+use tar;
 
-use errors::*;
+use crate::errors::*;
 
 
 #[cfg(feature="elf")]
 mod elf {
     use super::*;
-    use ::regex::{ Captures, Regex };
-    use ::goblin::elf::{ dyn, Elf };
-    use ::goblin::error::{ Result as GobResult };
+    use regex::{ Captures, Regex };
+    use goblin::elf::{ Elf, r#dyn as elfdyn };
+    use goblin::error::{ Result as GobResult };
 
     lazy_static! {
         static ref RE: Regex = Regex::new(r"(?:\$\{(ORIGIN|LIB|PLATFORM)\}|\$(ORIGIN|LIB|PLATFORM))").unwrap();
@@ -37,9 +42,9 @@ mod elf {
         let mut run_paths = vec!();
 
         if let Some(ref dynamic) = elf.dynamic {
-            for dyn in &dynamic.dyns {
-                if dyn.d_tag == dyn::DT_RPATH || dyn.d_tag == dyn::DT_RUNPATH {
-                    match elf.dynstrtab.get(dyn.d_val as usize) {
+            for dynobj in &dynamic.dyns {
+                if dynobj.d_tag == elfdyn::DT_RPATH || dynobj.d_tag == elfdyn::DT_RUNPATH {
+                    match elf.dynstrtab.get(dynobj.d_val as usize) {
                         Some(Ok(path)) => {
                             // TODO: Expand $LIB and $PLATFORM.
                             debug!("expanding run path \"{}\"", path);
@@ -65,10 +70,10 @@ mod elf {
                         },
                         Some(Err(e)) => {
                             // XXX: Should this error bubble up?
-                            warn!("error fetching strtab[{}]: {}", dyn.d_val, e);
+                            warn!("error fetching strtab[{}]: {}", dynobj.d_val, e);
                         },
                         None => {
-                            warn!("failed to find [{:?}] in strtab", dyn);
+                            warn!("failed to find [{:?}] in strtab", dynobj);
                             println!("{:?}", elf.strtab);
                         },
                     }
