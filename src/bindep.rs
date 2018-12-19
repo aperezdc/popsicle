@@ -8,28 +8,28 @@
 use pretty_assertions::assert;
 
 use lazy_static::lazy_static;
-use log::{ info, warn, debug };
-use std::convert::AsRef;
-use std::collections::HashSet;
-use std::fs::File;
-use std::io::{ Write, Result as IoResult };
-use std::ops::Deref;
-use std::path::{ Path, PathBuf };
+use log::{debug, info, warn};
 use memmap::Mmap;
+use std::collections::HashSet;
+use std::convert::AsRef;
+use std::fs::File;
+use std::io::{Result as IoResult, Write};
+use std::ops::Deref;
+use std::path::{Path, PathBuf};
 use tar;
 
 use crate::errors::*;
 
-
-#[cfg(feature="elf")]
+#[cfg(feature = "elf")]
 mod elf {
     use super::*;
-    use regex::{ Captures, Regex };
-    use goblin::elf::{ Elf, r#dyn as elfdyn };
-    use goblin::error::{ Result as GobResult };
+    use goblin::elf::{r#dyn as elfdyn, Elf};
+    use goblin::error::Result as GobResult;
+    use regex::{Captures, Regex};
 
     lazy_static! {
-        static ref RE: Regex = Regex::new(r"(?:\$\{(ORIGIN|LIB|PLATFORM)\}|\$(ORIGIN|LIB|PLATFORM))").unwrap();
+        static ref RE: Regex =
+            Regex::new(r"(?:\$\{(ORIGIN|LIB|PLATFORM)\}|\$(ORIGIN|LIB|PLATFORM))").unwrap();
     }
 
     struct Libraries<'a> {
@@ -39,7 +39,7 @@ mod elf {
 
     fn get_run_paths<'a>(elf: &'a Elf, base_path: &Path) -> Vec<String> {
         let base_path_str = base_path.to_str().unwrap();
-        let mut run_paths = vec!();
+        let mut run_paths = vec![];
 
         if let Some(ref dynamic) = elf.dynamic {
             for dynobj in &dynamic.dyns {
@@ -64,18 +64,18 @@ mod elf {
                                 Ok(full_path) => {
                                     debug!("run path canonicalized to {:?}", full_path);
                                     run_paths.push(full_path.to_string_lossy().into());
-                                },
-                                Err(e) => warn!("cannot canonicalize path: {}", e)
+                                }
+                                Err(e) => warn!("cannot canonicalize path: {}", e),
                             }
-                        },
+                        }
                         Some(Err(e)) => {
                             // XXX: Should this error bubble up?
                             warn!("error fetching strtab[{}]: {}", dynobj.d_val, e);
-                        },
+                        }
                         None => {
                             warn!("failed to find [{:?}] in strtab", dynobj);
                             println!("{:?}", elf.strtab);
-                        },
+                        }
                     }
                 }
             }
@@ -128,18 +128,19 @@ mod elf {
                         None => {
                             warn!("cannot find path for \"{}\"", lib_name);
                             continue;
-                        },
-                    }
+                        }
+                    },
                 }
             }
         }
     }
 
     pub fn libraries(path: &Path, data: &[u8]) -> GobResult<Vec<PathBuf>> {
-        Ok(Libraries::new(path, &Elf::parse(data)?).map(|p| p.to_path_buf()).collect())
+        Ok(Libraries::new(path, &Elf::parse(data)?)
+            .map(|p| p.to_path_buf())
+            .collect())
     }
 }
-
 
 //
 // Add some utility methods to tar::Builder, to avoid having to
@@ -179,7 +180,6 @@ impl<W: Write> TarBuilderExt for tar::Builder<W> {
     }
 }
 
-
 pub struct Solver<W: Write> {
     files: HashSet<PathBuf>,
     tar: tar::Builder<W>,
@@ -190,7 +190,10 @@ impl<W: Write> Solver<W> {
         let mut tar = tar::Builder::new(writer);
         tar.symlink("bin", "sbin")?;
         tar.symlink(".", "usr")?;
-        Ok(Solver { files: HashSet::new(), tar })
+        Ok(Solver {
+            files: HashSet::new(),
+            tar,
+        })
     }
 
     pub fn into_inner(self) -> tar::Builder<W> {
@@ -207,19 +210,20 @@ impl<W: Write> Solver<W> {
                 info!("scanning {:?}", path);
                 // TODO: Improve error reporting.
                 let file_map = {
-                    let file = File::open(&path)
-                        .chain_err(|| format!("cannot open file {:?}", path))?;
+                    let file =
+                        File::open(&path).chain_err(|| format!("cannot open file {:?}", path))?;
                     unsafe {
                         Mmap::map(&file)
                             .chain_err(|| format!("cannot create memmap for {:?}", path))?
                     }
                 };
                 debug!("memmap has {} bytes", file_map.len());
-                self.tar.add(path, path.strip_prefix("/").unwrap(), &file_map)
+                self.tar
+                    .add(path, path.strip_prefix("/").unwrap(), &file_map)
                     .chain_err(|| format!("cannot add {:?} to tar file", path))?;
                 elf::libraries(path, &file_map)
                     .chain_err(|| format!("cannot parse ELF binary: {:?}", path))?
-            },
+            }
         };
         for library in needed_libraries {
             self.scan_file(&library)?;
@@ -227,4 +231,3 @@ impl<W: Write> Solver<W> {
         Ok(())
     }
 }
-

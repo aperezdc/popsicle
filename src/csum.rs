@@ -4,11 +4,10 @@
 // Distributed under terms of the MIT license.
 //
 
-use std::convert::{ AsRef, From };
+use blake2_rfc::blake2b::{Blake2b, Blake2bResult};
+use std::convert::{AsRef, From};
 use std::fmt::Write as FmtWrite;
-use std::io::{ Result as IOResult, Write };
-use blake2_rfc::blake2b::{ Blake2b, Blake2bResult };
-
+use std::io::{Result as IOResult, Write};
 
 #[derive(Eq, PartialEq)]
 pub struct Checksum {
@@ -16,8 +15,7 @@ pub struct Checksum {
     hexstr: String,
 }
 
-impl From<Blake2bResult> for Checksum
-{
+impl From<Blake2bResult> for Checksum {
     fn from(result: Blake2bResult) -> Self {
         let mut hexstr = String::new();
         for byte in result.as_bytes() {
@@ -45,7 +43,6 @@ impl AsRef<[u8]> for Checksum {
     }
 }
 
-
 pub struct CSumWriter<W: Write> {
     inner: W,
     csum: Blake2b,
@@ -53,7 +50,10 @@ pub struct CSumWriter<W: Write> {
 
 impl<W: Write> CSumWriter<W> {
     pub fn new(inner: W) -> Self {
-        Self { inner, csum: Blake2b::new(64) }
+        Self {
+            inner,
+            csum: Blake2b::new(64),
+        }
     }
 
     pub fn into_inner(self) -> (W, Checksum) {

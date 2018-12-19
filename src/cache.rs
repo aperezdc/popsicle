@@ -5,18 +5,17 @@
 //
 
 #[cfg(debug)]
-use pretty_assertions::{ assert, assert_eq };
+use pretty_assertions::{assert, assert_eq};
 
 use std::convert::AsRef;
 use std::fmt;
 use std::fs::File;
-use std::io::{ BufReader, BufWriter };
 use std::io::prelude::*;
+use std::io::{BufReader, BufWriter};
 use std::path::PathBuf;
 use xdg;
 
 use crate::errors::*;
-
 
 pub struct Cache {
     xdg: xdg::BaseDirectories,
@@ -25,7 +24,7 @@ pub struct Cache {
 
 impl Cache {
     pub fn new<S: AsRef<str>>(profile: S) -> Result<Self> {
-        Ok(Self{
+        Ok(Self {
             xdg: xdg::BaseDirectories::with_profile("popsicle", profile.as_ref())?,
             valid: true,
         })
@@ -49,8 +48,8 @@ impl Cache {
                 let mut bytes = String::new();
                 BufReader::new(File::open(path)?).read_to_string(&mut bytes)?;
                 Ok(Some(bytes))
-            },
-            None => Ok(None)
+            }
+            None => Ok(None),
         }
     }
 
@@ -91,17 +90,21 @@ impl Cache {
 
 impl fmt::Debug for Cache {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Cache({:?}, valid={})", self.xdg.get_cache_home(), self.valid)
+        write!(
+            f,
+            "Cache({:?}, valid={})",
+            self.xdg.get_cache_home(),
+            self.valid
+        )
     }
 }
-
 
 #[cfg(test)]
 mod tests {
     extern crate tempdir;
 
-    use super::*;
     use self::tempdir::TempDir;
+    use super::*;
 
     fn make_tempdir() -> TempDir {
         let tmpdir = TempDir::new("popsicle-test").unwrap();

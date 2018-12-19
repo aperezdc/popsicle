@@ -10,25 +10,27 @@
 #[cfg(test)]
 use pretty_assertions::assert_eq;
 
-mod errors;
 mod bindep;
-mod csum;
 mod cache;
+mod csum;
+mod errors;
 mod util;
 
 use libflate::gzip;
+use log::{debug, info, warn};
 use std::convert::AsRef;
-use std::io::{ Seek, Write };
-use std::path::{ Path, PathBuf };
+use std::io::{Seek, Write};
+use std::path::{Path, PathBuf};
 use structopt::StructOpt;
-use log::{ info, warn, debug };
 
 use crate::bindep::TarBuilderExt;
 use crate::errors::*;
 error_chain::quick_main!(run);
 
-
-fn compiler_binaries<P: AsRef<Path>>(compiler_kind: util::CompilerKind, compiler_path: P) -> Option<Vec<PathBuf>> {
+fn compiler_binaries<P: AsRef<Path>>(
+    compiler_kind: util::CompilerKind,
+    compiler_path: P,
+) -> Option<Vec<PathBuf>> {
     match compiler_kind {
         util::CompilerKind::Gcc => compiler_binaries_gcc(compiler_path.as_ref()),
         util::CompilerKind::Clang => compiler_binaries_clang(compiler_path.as_ref()),
@@ -37,21 +39,31 @@ fn compiler_binaries<P: AsRef<Path>>(compiler_kind: util::CompilerKind, compiler
 
 #[inline]
 fn compiler_print_file_name(compiler_path: &Path, file_name: &str) -> Option<PathBuf> {
-    let output = match std::process::Command::new(compiler_path).arg("--print-file-name").arg(file_name).output() {
+    let output = match std::process::Command::new(compiler_path)
+        .arg("--print-file-name")
+        .arg(file_name)
+        .output()
+    {
         Ok(out) => out,
         Err(err) => {
             warn!("could not run compiler {:?}: {}", compiler_path, err);
             return None;
-        },
+        }
     };
 
-    let path = std::str::from_utf8(output.stdout.as_slice()).unwrap().trim();
+    let path = std::str::from_utf8(output.stdout.as_slice())
+        .unwrap()
+        .trim();
     if path == file_name {
         return None;
     }
 
     let path: PathBuf = path.into();
-    if path.is_absolute() { Some(path) } else { None }
+    if path.is_absolute() {
+        Some(path)
+    } else {
+        None
+    }
 }
 
 // TODO: Propagate errors instead of panicing!
@@ -60,7 +72,7 @@ fn compiler_binaries_gcc(compiler_path: &Path) -> Option<Vec<PathBuf>> {
     let mut path_list = Vec::new();
 
     // cc1 is always needed to compile C code.
-    path_list.push(compiler_print_file_name(compiler_path, "cc1").unwrap());  // FIXME: panic!
+    path_list.push(compiler_print_file_name(compiler_path, "cc1").unwrap()); // FIXME: panic!
 
     // The LTO plug-in may (or may not) be available.
     if let Some(lto_plugin) = compiler_print_file_name(compiler_path, "liblto_plugin.so") {
@@ -76,7 +88,7 @@ fn compiler_binaries_gcc(compiler_path: &Path) -> Option<Vec<PathBuf>> {
         if gxx.is_file() {
             path_list.push(gxx);
         } else {
-            path_list.push(util::find_program("g++", None).unwrap());  // FIXME: panic!
+            path_list.push(util::find_program("g++", None).unwrap()); // FIXME: panic!
         }
     }
 
@@ -88,8 +100,10 @@ fn compiler_binaries_clang(_compiler_path: &Path) -> Option<Vec<PathBuf>> {
     None
 }
 
-
-fn compiler_fixup_tar<W: Write>(compiler_kind: util::CompilerKind, tar: &mut tar::Builder<W>) -> Result<()> {
+fn compiler_fixup_tar<W: Write>(
+    compiler_kind: util::CompilerKind,
+    tar: &mut tar::Builder<W>,
+) -> Result<()> {
     match compiler_kind {
         util::CompilerKind::Gcc => compiler_fixup_tar_gcc(tar),
         util::CompilerKind::Clang => compiler_fixup_tar_clang(tar),
@@ -113,17 +127,19 @@ fn compiler_fixup_tar_clang<W: Write>(tar: &mut tar::Builder<W>) -> Result<()> {
     Ok(())
 }
 
-
 #[derive(StructOpt)]
-#[structopt(name="popsicle", about="Creates toolchain tarballs for Icecream")]
+#[structopt(name = "popsicle", about = "Creates toolchain tarballs for Icecream")]
 struct CliOptions {
-    #[structopt(short="f", long="force", help="Always rebuild the toolchain tarball")]
+    #[structopt(
+        short = "f",
+        long = "force",
+        help = "Always rebuild the toolchain tarball"
+    )]
     force_rebuild: bool,
 
-    #[structopt(help="Specify the name of the compiler to package")]
+    #[structopt(help = "Specify the name of the compiler to package")]
     compiler: String,
 }
-
 
 fn run() -> Result<()> {
     env_logger::init();
@@ -134,7 +150,7 @@ fn run() -> Result<()> {
         Ok(path) => {
             info!("ccache found at {:?}", path);
             Some(path)
-        },
+        }
         Err(e) => {
             warn!("error finding ccache: {}", e);
             None
@@ -150,16 +166,15 @@ fn run() -> Result<()> {
     let mut assembler_path = compiler_path.clone();
     assembler_path.set_file_name("as");
     if !assembler_path.is_file() {
-        assembler_path = util::find_program("as", None)
-            .chain_err(|| "cannot find assembler executable")?;
+        assembler_path =
+            util::find_program("as", None).chain_err(|| "cannot find assembler executable")?;
     }
     info!("Assembler executable: {:?}", assembler_path);
 
-    let true_path = util::find_program("true", None)
-        .chain_err(|| "cannot find \"true\" executable")?;
+    let true_path =
+        util::find_program("true", None).chain_err(|| "cannot find \"true\" executable")?;
 
-    let mut cache = cache::Cache::new(name.as_str())
-        .chain_err(|| "Could not open cache")?;
+    let mut cache = cache::Cache::new(name.as_str()).chain_err(|| "Could not open cache")?;
     info!("cache: {:?}", cache);
 
     let old_version = cache.get("compiler-version")?;
@@ -178,7 +193,7 @@ fn run() -> Result<()> {
 
     let writer = csum::CSumWriter::new(std::io::BufWriter::new(tar_file));
     let mut solver = bindep::Solver::new(writer)
-         .chain_err(|| format!("cannot create write buffer for {:?}", tar_path))?;
+        .chain_err(|| format!("cannot create write buffer for {:?}", tar_path))?;
 
     for binary in &[&compiler_path, &assembler_path, &true_path] {
         solver.scan_file(binary.as_path())?;
@@ -206,10 +221,15 @@ fn run() -> Result<()> {
         if let Some(version) = old_version {
             cache.del(format!("{}-{}.tar.gz", name, version))?;
         }
-        let mut encoder = gzip::Encoder::new(std::io::BufWriter::new(std::fs::File::create(&targz_path)?))?;
+        let mut encoder =
+            gzip::Encoder::new(std::io::BufWriter::new(std::fs::File::create(&targz_path)?))?;
         info!("compressing tarball...");
-        std::io::copy(&mut std::io::BufReader::new(tar_file), &mut encoder)
-            .chain_err(|| format!("cannot compress data from {:?} into {:?}", tar_path, targz_path))?;
+        std::io::copy(&mut std::io::BufReader::new(tar_file), &mut encoder).chain_err(|| {
+            format!(
+                "cannot compress data from {:?} into {:?}",
+                tar_path, targz_path
+            )
+        })?;
         encoder.finish().into_result()?;
     }
 

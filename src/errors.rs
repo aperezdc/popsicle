@@ -6,7 +6,7 @@
 
 use error_chain::*;
 
-error_chain!{
+error_chain! {
     errors {
         CompilerInfoError(t: &'static str) {
             description("compiler information error")
@@ -26,4 +26,3 @@ error_chain!{
         Xdg(xdg::BaseDirectoriesError);
     }
 }
-
